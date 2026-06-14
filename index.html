@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrainKaizen</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#3e2723" id="themeColorMeta" />
+  <meta name="description" content="BrainKaizen — Produtividade inteligente para estudantes. Timer Pomodoro, tarefas, notas e monitorização do sono num só lugar." />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js" defer></script>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>
+    // Guard de sessão — detecta token na URL (confirmação de email)
+    // e aguarda o Supabase processar antes de verificar a sessão
+    (async function guardSession() {
+      const _sb = supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        {
+          auth: {
+            persistSession:     true,
+            storage:            window.sessionStorage,
+            autoRefreshToken:   true,
+            detectSessionInUrl: true,  // CRÍTICO: lê token de confirmação da URL
+          }
+        }
+      );
+
+      // Se a URL tem token de confirmação (#access_token ou ?token_hash)
+      // aguardar o Supabase processar o token antes de verificar sessão
+      const hash   = window.location.hash;
+      const search = window.location.search;
+      const hasToken = hash.includes('access_token') ||
+                       hash.includes('type=') ||
+                       search.includes('token_hash') ||
+                       search.includes('type=');
+
+      if (hasToken) {
+        // Aguardar o Supabase processar o token (onAuthStateChange)
+        await new Promise(resolve => {
+          const { data: { subscription } } = _sb.auth.onAuthStateChange((event, session) => {
+            subscription.unsubscribe();
+            resolve(session);
+          });
+          // Timeout de segurança: se demorar mais de 5s, continuar
+          setTimeout(resolve, 5000);
+        });
+      }
+
+      // Agora verificar a sessão
+      const { data: { session } } = await _sb.auth.getSession();
+      if (!session) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     OVERLAYS
+════════════════════════════════════════ -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="overlay" id="settingsOverlay" onclick="closeSettings()" style="z-index:999;"></div>
+<div class="overlay" id="subtaskOverlay" onclick="closeSubtaskModal()" style="z-index:999;"></div>
+
+<!-- ═══════════════════════════════════════
+     MODAL DE DEFINIÇÕES
+════════════════════════════════════════ -->
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-header">
+    <div class="modal-title" id="settingsTitle">Definições</div>
+    <i class="ph ph-x modal-close" tabindex="0" role="button" aria-label="Fechar"
+       onclick="closeSettings()" onkeydown="if(event.key==='Enter')closeSettings()"></i>
+  </div>
+
+  <!-- Foto de Perfil -->
+  <div class="settings-section-label">Foto de Perfil</div>
+  <div class="avatar-upload-row">
+    <div class="avatar-preview-wrap">
+      <div class="avatar-preview" id="settingsAvatar">E</div>
+      <label class="avatar-camera-btn" title="Alterar foto">
+        <i class="ph ph-camera"></i>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(event)">
+      </label>
+    </div>
+    <div class="avatar-upload-info">
+      <button class="btn btn-secondary avatar-change-btn" onclick="document.getElementById('avatarInput').click()">
+        <i class="ph ph-image"></i> Alterar foto
+      </button>
+      <button class="btn btn-avatar-remove" id="btnRemoveAvatar" onclick="removeAvatar()" style="display:none">
+        <i class="ph ph-trash"></i> Remover
+      </button>
+      <div class="avatar-hint">JPG, PNG ou WEBP · Máx. 2MB</div>
+    </div>
+  </div>
+
+  <!-- Nome do Utilizador -->
+  <div class="settings-section-label">Nome de Utilizador</div>
+  <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;border:none;padding-top:0;">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" id="displayNameInput" placeholder="O teu nome..."
+             style="flex:1;padding:10px 14px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.2);
+                    border-radius:25px;color:var(--text-main);font-size:13px;font-family:inherit;outline:none;">
+      <button class="btn btn-primary" style="padding:10px 18px;font-size:12px;" onclick="saveDisplayName()">
+        <i class="ph ph-check"></i> Guardar
+      </button>
+    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,.35);font-family:'DM Mono',monospace;padding-left:4px;">
+      Este nome aparece na barra lateral
+    </div>
+  </div>
+  <div style="height:1px;background:rgba(255,255,255,.08);margin:8px 0 16px;"></div>
+
+  <!-- Tema Visual -->
+  <div class="settings-section-label">Tema Visual</div>
+  <div class="theme-grid">
+    <button class="theme-btn active" data-theme="coffee"  onclick="setTheme('coffee',this)">
+      <span class="theme-swatch" style="background:linear-gradient(135deg,#3e2723,#8d6e63)"></span>Coffee Glass
+    </button>
+    <button class="theme-btn" data-theme="ocean"   onclick="setTheme('ocean',this)">
+      <span class="theme-swatch" style="background:linear-gradient(135deg,#0d1b2a,#00bcd4)"></span>Ocean Glass
+    </button>
+    <button class="theme-btn" data-theme="forest"  onclick="setTheme('forest',this)">
+      <span class="theme-swatch" style="background:linear-gradient(135deg,#1b2a1e,#66bb6a)"></span>Forest Glass
+    </button>
+    <button class="theme-btn" data-theme="midnight" onclick="setTheme('midnight',this)">
+      <span class="theme-swatch" style="background:linear-gradient(135deg,#000000,#7c3aed)"></span>Midnight
+    </button>
+  </div>
+
+  <!-- Som -->
+  <div class="settings-row">
+    <span class="settings-label">Notificações no Navegador</span>
+    <label class="switch"><input type="checkbox" id="toggleNotifs" onchange="toggleNotifications(this)"><span class="slider"></span></label>
+  </div>
+  <div class="settings-row">
+    <span class="settings-label">Ligar Som do Timer</span>
+    <label class="switch"><input type="checkbox" id="toggleSound" checked onchange="toggleSoundStatus(this)"><span class="slider"></span></label>
+  </div>
+  <div class="settings-row" id="soundSelectRow">
+    <span class="settings-label">Tipo de Som</span>
+    <select id="soundType" class="styled-select" onchange="testSound()">
+      <option value="bell">Sino Suave</option>
+      <option value="digital">Bip Digital</option>
+      <option value="gong">Gongo Longo</option>
+    </select>
+  </div>
+
+  <!-- Exportar / Importar -->
+  <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:10px;border:none;margin-top:15px;">
+    <button class="btn btn-secondary" onclick="exportData()"><i class="ph ph-download-simple"></i> Exportar Dados</button>
+    <label class="btn btn-secondary" style="text-align:center;cursor:pointer;">
+      <i class="ph ph-upload-simple"></i> Importar Dados
+      <input type="file" style="display:none" accept=".json" onchange="importData(event)">
+    </label>
+  </div>
+
+  <!-- Terminar Sessão -->
+  <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:10px;border:none;margin-top:8px;">
+    <div style="height:1px;background:rgba(239,154,154,0.2);margin-bottom:4px;"></div>
+    <button class="btn btn-logout" onclick="handleLogout()">
+      <i class="ph ph-sign-out"></i> Terminar Sessão
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL DE SUBTAREFAS
+════════════════════════════════════════ -->
+<div class="modal" id="subtaskModal" role="dialog" aria-modal="true" aria-labelledby="subtaskModalTitle">
+  <div class="modal-header">
+    <div class="modal-title" id="subtaskModalTitle">Subtarefas</div>
+    <i class="ph ph-x modal-close" tabindex="0" role="button" aria-label="Fechar"
+       onclick="closeSubtaskModal()" onkeydown="if(event.key==='Enter')closeSubtaskModal()"></i>
+  </div>
+  <div id="subtaskParentTitle" style="font-size:13px;color:rgba(245,245,220,0.6);margin-bottom:16px;"></div>
+  <div class="task-input-row" style="margin-bottom:12px;">
+    <input type="text" id="subtaskInput" placeholder="Nova subtarefa..." onkeydown="if(event.key==='Enter')addSubtask()">
+    <button class="btn btn-primary" onclick="addSubtask()"><i class="ph ph-plus"></i></button>
+  </div>
+  <div id="subtaskList" class="task-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">BrainKaizen</div>
+    <div class="logo-sub">Smart productivity</div>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-item active" data-section="overview" onclick="navigate(this)"><i class="ph ph-squares-four"></i> Visão Geral</div>
+    <div class="nav-item" data-section="timer"    onclick="navigate(this)"><i class="ph ph-timer"></i> Timer Pomodoro</div>
+    <div class="nav-label" style="margin-top:16px">Organização</div>
+    <div class="nav-item" data-section="tasks"    onclick="navigate(this)"><i class="ph ph-check-square"></i> Tarefas</div>
+    <div class="nav-item" data-section="notes"    onclick="navigate(this)"><i class="ph ph-note-pencil"></i> Notas</div>
+    <div class="nav-item" data-section="sleep"    onclick="navigate(this)"><i class="ph ph-moon"></i> Sono</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebarAvatar">E</div>
+      <div>
+        <div class="user-name" id="sidebarName">Estudante</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════
+     MAIN
+════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="hamburger" type="button" id="hamburger" onclick="toggleSidebar()" aria-label="Abrir menu">
+        <span></span><span></span><span></span>
+      </button>
+      <!-- Logo mobile (só aparece no mobile) -->
+      <div class="topbar-logo-mobile">
+        <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" rx="22" fill="rgba(255,255,255,0.12)"/>
+          <g transform="translate(18,16)" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <!-- Cérebro esquerdo -->
+            <path d="M32 12 C32 6 24 4 20 8 C16 4 8 6 8 12 C4 14 2 18 4 22 C2 26 4 30 8 31 C8 36 12 40 16 40 C20 40 22 38 22 36"/>
+            <!-- Cérebro direito -->
+            <path d="M32 12 C32 6 40 4 44 8 C48 4 56 6 56 12 C60 14 62 18 60 22 C62 26 60 30 56 31 C56 36 52 40 48 40 C44 40 42 38 42 36"/>
+            <!-- Centro vertical -->
+            <line x1="32" y1="10" x2="32" y2="40"/>
+            <!-- Sulcos esquerdo -->
+            <path d="M14 18 C18 16 22 18 22 22"/>
+            <path d="M10 26 C14 24 20 26 20 30"/>
+            <!-- Sulcos direito -->
+            <path d="M50 18 C46 16 42 18 42 22"/>
+            <path d="M54 26 C50 24 44 26 44 30"/>
+          </g>
+        </svg>
+        <span class="topbar-logo-name">BrainKaizen</span>
+      </div>
+      <div class="topbar-title-desktop">
+        <div class="topbar-title" id="sectionTitle">Visão Geral</div>
+        <div class="topbar-sub"   id="sectionSub">Bem-vindo de volta!</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="sync-indicator" id="syncIndicator" title="Estado da sincronização">
+        <i class="ph ph-check-circle"></i><span>Sincronizado</span>
+      </div>
+      <div class="clock-widget" id="liveClock">00:00:00</div>
+      <button class="btn-icon" onclick="openSettings()" title="Definições"><i class="ph ph-gear"></i></button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- ════════ VISÃO GERAL ════════ -->
+    <section class="section active fade-in" id="sec-overview">
+      <div class="stat-cards">
+        <div class="stat-card"><div class="stat-label">Horas Hoje</div><div class="stat-value" id="stat-hours">0h</div><div class="stat-change">Timer Pomodoro</div></div>
+        <div class="stat-card"><div class="stat-label">Tarefas</div><div class="stat-value" id="stat-tasks">0</div><div class="stat-change">pendentes</div></div>
+        <div class="stat-card"><div class="stat-label">Sono</div><div class="stat-value" id="stat-sleep">—</div><div class="stat-change">última noite</div></div>
+        <div class="stat-card"><div class="stat-label">Sessões</div><div class="stat-value" id="stat-sessions">0</div><div class="stat-change">pomodoros feitos</div></div>
+      </div>
+      <div class="card" style="margin-bottom:22px;">
+        <div class="card-header" style="margin-bottom:8px;">
+          <div><div class="card-title">Progresso de Foco</div></div>
+        </div>
+        <div style="position:relative;height:180px;width:100%;"><canvas id="focusChart"></canvas></div>
+      </div>
+      <div class="grid-2">
+        <div class="card" style="cursor:pointer" onclick="navigate(document.querySelector('[data-section=timer]'))">
+          <div class="card-header"><div><div class="card-title">Ir para Pomodoro</div></div><div class="card-icon"><i class="ph ph-timer"></i></div></div>
+          <button class="btn btn-primary" style="width:100%"><i class="ph ph-play"></i> Iniciar Sessão Rápida</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Próximas Tarefas</div></div><div class="card-icon"><i class="ph ph-check-square"></i></div></div>
+          <div id="overviewTasks" style="min-height:60px;display:flex;flex-direction:column;gap:7px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ POMODORO ════════ -->
+    <section class="section fade-in" id="sec-timer">
+      <div class="section-header">
+        <h2>Timer Pomodoro</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <p id="focusTaskLabel" style="color:#ffe082;font-weight:600;margin:0;">Nenhuma tarefa vinculada (Foco Livre)</p>
+          <button class="btn btn-secondary" id="clearFocusBtn" onclick="clearFocusTask()" style="display:none;padding:4px 12px;font-size:11px;">
+            <i class="ph ph-x"></i> Limpar foco
+          </button>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="timer-mode-tabs">
+            <div class="timer-tab active" onclick="setTimerMode('focus',this)">Foco</div>
+            <div class="timer-tab" onclick="setTimerMode('short',this)">Pausa Curta</div>
+            <div class="timer-tab" onclick="setTimerMode('long',this)">Pausa Longa</div>
+          </div>
+          <div style="text-align:center">
+            <div class="timer-ring">
+              <svg width="180" height="180" viewBox="0 0 180 180">
+                <circle class="timer-ring-bg" cx="90" cy="90" r="80" fill="none" stroke-width="5"/>
+                <circle class="timer-ring-fg" id="timerRingFg" cx="90" cy="90" r="80" fill="none" stroke-width="5" stroke-dasharray="502.65" stroke-dashoffset="0"/>
+              </svg>
+              <div class="timer-time">
+                <div class="timer-digits" id="timerDisplay">25:00</div>
+                <div class="timer-session-label" id="timerLabel">FOCO</div>
+              </div>
+            </div>
+            <div class="timer-controls">
+              <button class="btn btn-secondary" onclick="resetTimer()"><i class="ph ph-arrow-counter-clockwise"></i></button>
+              <button class="btn btn-primary" id="startPauseBtn" onclick="toggleTimer()">
+                <i class="ph ph-play" id="startPauseIcon"></i><span id="startPauseText">Iniciar</span>
+              </button>
+              <button class="btn btn-danger" onclick="skipTimer()"><i class="ph ph-skip-forward"></i></button>
+            </div>
+            <div class="timer-sessions" id="sessionDots"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:14px">Configurações (Minutos)</div>
+            <div class="form-group"><label>Foco</label><input type="number" id="cfg-focus" value="25" onchange="updateTimerConfig()"></div>
+            <div class="form-group"><label>Pausa curta</label><input type="number" id="cfg-short" value="5" onchange="updateTimerConfig()"></div>
+            <div class="form-group"><label>Pausa longa</label><input type="number" id="cfg-long" value="15" onchange="updateTimerConfig()"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ TAREFAS ════════ -->
+    <section class="section fade-in" id="sec-tasks">
+      <div class="section-header"><h2>Tarefas</h2><p>Arraste para reordenar. Use #tag para categorizar.</p></div>
+      <div class="card">
+        <!-- Linha de criação de tarefa -->
+        <div class="task-input-row">
+          <input type="text" id="taskInput" placeholder="Nova tarefa... (ex: #Faculdade Estudar Cap. 3)" onkeydown="if(event.key==='Enter')addTask()">
+          <input type="date" id="taskDueDate" class="styled-select" title="Prazo">
+          <select class="styled-select" id="taskPriority">
+            <option value="high">🔴 Alta</option>
+            <option value="medium" selected>🟡 Média</option>
+            <option value="low">🟢 Baixa</option>
+          </select>
+          <select class="styled-select" id="taskRecurrence" title="Recorrência">
+            <option value="">↺ Nunca</option>
+            <option value="daily">↺ Diária</option>
+            <option value="weekly">↺ Semanal</option>
+          </select>
+          <button class="btn btn-primary" onclick="addTask()"><i class="ph ph-plus"></i></button>
+        </div>
+
+        <!-- Filtros de estado + tags dinâmicas -->
+        <div class="task-filters" id="taskFilters">
+          <button class="filter-btn active" data-filter="all"     onclick="filterTasks('all',this)">Todas</button>
+          <button class="filter-btn"        data-filter="pending" onclick="filterTasks('pending',this)">Pendentes</button>
+          <button class="filter-btn"        data-filter="done"    onclick="filterTasks('done',this)">Concluídas</button>
+          <button class="filter-btn filter-btn-clear"             onclick="clearCompletedTasks()"><i class="ph ph-trash"></i> Limpar Concluídas</button>
+        </div>
+
+        <div class="task-list" id="taskList"></div>
+      </div>
+    </section>
+
+    <!-- ════════ NOTAS ════════ -->
+    <section class="section fade-in" id="sec-notes">
+      <div class="section-header"><h2>Bloco de Notas</h2><p>Múltiplos cadernos com Rich Text, salvos automaticamente.</p></div>
+      <div class="card">
+        <!-- Barra de cadernos -->
+        <div class="notebooks-bar">
+          <div class="notebooks-list" id="notebooksList"></div>
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;flex-shrink:0;" onclick="createNotebook()">
+            <i class="ph ph-plus"></i> Novo
+          </button>
+        </div>
+
+        <!-- Toolbar de acções -->
+        <div class="notes-toolbar">
+          <button class="btn-icon" onclick="renameNotebook()" title="Renomear caderno"><i class="ph ph-pencil"></i></button>
+          <button class="btn-icon" onclick="deleteNotebook()" title="Apagar caderno"><i class="ph ph-trash"></i></button>
+          <button class="btn-icon" onclick="exportNoteToPDF()" title="Exportar para PDF"><i class="ph ph-file-pdf"></i></button>
+          <div class="notes-saved-badge" id="savedBadge"><i class="ph ph-check-circle"></i> Salvo</div>
+        </div>
+
+        <!-- Editor Quill — wrapper fixo; o JS inicializa dentro de #quillMount -->
+        <!-- O wrapper nunca é substituído, evitando bfcache duplicar a toolbar -->
+        <div id="quillWrapper">
+          <div id="quillMount"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ SONO ════════ -->
+    <section class="section fade-in" id="sec-sleep">
+      <div class="section-header"><h2>Sono</h2><p>Monitorize a sua qualidade de sono.</p></div>
+      <div class="card" style="margin-bottom:22px;">
+        <div class="card-header" style="margin-bottom:8px;">
+          <div><div class="card-title">Histórico de Sono</div><div class="card-sub">Últimos 7 dias (Horas)</div></div>
+        </div>
+        <div style="position:relative;height:180px;width:100%;"><canvas id="sleepChart"></canvas></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="sleep-inputs">
+            <div class="form-group"><label>Dormir</label><input type="time" id="sleepBedtime" value="23:00" oninput="calcSleep()"></div>
+            <div class="form-group"><label>Acordar</label><input type="time" id="sleepWake"    value="07:00" oninput="calcSleep()"></div>
+          </div>
+          <div class="sleep-result">
+            <div class="sleep-hours" id="sleepHoursDisplay">8h 00min</div>
+            <span class="sleep-quality sq-good" id="sleepQualityBadge">✓ Ideal</span>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="saveSleep()">
+            <i class="ph ph-floppy-disk"></i> Guardar Registo
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div><!-- /.main -->
+
+<!-- PWA Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(r => console.log('SW registado:', r.scope))
+        .catch(e => console.warn('SW falhou:', e));
+    });
+  }
+</script>
+
+<script src="app.js"></script>
+</body>
+</html>

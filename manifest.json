@@ -1,0 +1,54 @@
+{
+  "name": "BrainKaizen",
+  "short_name": "BrainKaizen",
+  "description": "Produtividade inteligente para estudantes. Timer Pomodoro, tarefas, notas e sono.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#3e2723",
+  "theme_color": "#3e2723",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Timer Pomodoro",
+      "short_name": "Timer",
+      "description": "Iniciar uma sessão de foco",
+      "url": "/index.html#timer",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tarefas",
+      "short_name": "Tarefas",
+      "description": "Ver as minhas tarefas",
+      "url": "/index.html#tasks",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

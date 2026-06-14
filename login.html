@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrainKaizen — Entrar</title>
+  <meta name="theme-color" content="#3e2723" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --c1:#3e2723;--c2:#5d4037;--c3:#8d6e63;--cream:#f5f5dc;--glass-bg:rgba(62,39,35,0.55);--glass-border:rgba(255,255,255,0.18);--radius:24px; }
+    html,body { height:100%; font-family:'DM Sans',sans-serif; background:linear-gradient(135deg,#3e2723 0%,#5d4037 55%,#8d6e63 100%); background-attachment:fixed; color:var(--cream); overflow:hidden; }
+    body::after { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:9999; }
+    .bg-circle { position:fixed; border-radius:50%; background:rgba(255,255,255,0.04); pointer-events:none; }
+    .bg-circle-1 { width:500px; height:500px; top:-150px; right:-100px; }
+    .bg-circle-2 { width:350px; height:350px; bottom:-100px; left:-80px; }
+    .page { height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .login-card { width:100%; max-width:420px; background:var(--glass-bg); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--glass-border); border-radius:var(--radius); padding:44px 40px 36px; box-shadow:0 20px 60px rgba(0,0,0,.35); position:relative; overflow:hidden; animation:cardIn .5s cubic-bezier(.4,0,.2,1); }
+    .login-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent); }
+    @keyframes cardIn { from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);} }
+    .logo { text-align:center; margin-bottom:32px; }
+    .logo-icon { width:64px; height:64px; border-radius:18px; background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.05)); border:1px solid rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 14px; box-shadow:0 4px 20px rgba(0,0,0,.2); }
+    .logo-name { font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:700; }
+    .logo-sub { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:rgba(245,245,220,.5); font-family:'DM Mono',monospace; margin-top:3px; }
+    .tabs { display:flex; gap:4px; background:rgba(0,0,0,.2); border-radius:25px; padding:4px; margin-bottom:28px; }
+    .tab { flex:1; padding:9px; border-radius:25px; font-size:13px; font-weight:600; text-align:center; cursor:pointer; color:rgba(245,245,220,.5); transition:all .22s; border:none; background:none; font-family:inherit; }
+    .tab.active { background:rgba(255,255,255,.18); color:var(--cream); }
+    .form { display:flex; flex-direction:column; gap:16px; }
+    .form-group label { display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:rgba(245,245,220,.55); font-family:'DM Mono',monospace; margin-bottom:6px; }
+    .form-group .input-wrap { position:relative; }
+    .form-group .input-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:17px; color:rgba(245,245,220,.4); pointer-events:none; }
+    .form-group input { width:100%; padding:11px 14px 11px 40px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.18); border-radius:12px; color:var(--cream); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s,background .2s; }
+    .form-group input::placeholder { color:rgba(245,245,220,.3); }
+    .form-group input:focus { border-color:rgba(255,255,255,.45); background:rgba(0,0,0,.35); }
+    .toggle-pw { position:absolute; right:14px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:17px; color:rgba(245,245,220,.4); background:none; border:none; padding:0; transition:color .2s; }
+    .toggle-pw:hover { color:rgba(245,245,220,.8); }
+    .forgot { text-align:right; margin-top:-8px; }
+    .forgot a { font-size:12px; color:rgba(245,245,220,.5); text-decoration:none; transition:color .2s; }
+    .forgot a:hover { color:var(--cream); }
+    .btn-submit { width:100%; padding:13px; background:linear-gradient(90deg,#5d4037,#8d6e63); border:none; border-radius:25px; color:#fff; font-size:14px; font-weight:600; letter-spacing:1px; cursor:pointer; font-family:inherit; transition:all .22s; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:4px; }
+    .btn-submit:hover { opacity:.9; transform:translateY(-1px); box-shadow:0 8px 24px rgba(93,64,55,.4); }
+    .btn-submit:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+    .spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+    @keyframes spin { to{transform:rotate(360deg);} }
+    .msg { padding:11px 14px; border-radius:12px; font-size:13px; display:none; align-items:center; gap:8px; margin-bottom:4px; }
+    .msg.error   { background:rgba(200,60,60,.15); border:1px solid rgba(200,60,60,.3); color:#ef9a9a; }
+    .msg.success { background:rgba(0,200,120,.12); border:1px solid rgba(0,200,120,.3); color:#a5d6a7; }
+    .msg.show { display:flex; }
+    .card-footer { text-align:center; margin-top:22px; font-size:11px; color:rgba(245,245,220,.3); font-family:'DM Mono',monospace; }
+    @media(max-width:460px){.login-card{padding:36px 24px 28px;}}
+
+    /* ── Ecrã de confirmação de email ── */
+    .confirm-screen { display:none; flex-direction:column; align-items:center; text-align:center; gap:0; }
+    .confirm-screen.show { display:flex; }
+
+    .confirm-icon-wrap {
+      width:80px; height:80px; border-radius:50%;
+      background:linear-gradient(135deg,rgba(0,200,120,.15),rgba(0,200,120,.05));
+      border:2px solid rgba(0,200,120,.3);
+      display:flex; align-items:center; justify-content:center;
+      font-size:36px; color:#a5d6a7;
+      margin-bottom:22px;
+      animation:pulseGreen 2s ease-in-out infinite;
+    }
+    @keyframes pulseGreen {
+      0%,100% { box-shadow:0 0 0 0 rgba(0,200,120,.25); }
+      50%      { box-shadow:0 0 0 14px rgba(0,200,120,0); }
+    }
+
+    .confirm-title {
+      font-family:'Cormorant Garamond',serif;
+      font-size:22px; font-weight:700; margin-bottom:10px;
+    }
+    .confirm-email-badge {
+      background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+      border-radius:25px; padding:6px 16px;
+      font-family:'DM Mono',monospace; font-size:13px;
+      color:rgba(245,245,220,.9); margin-bottom:16px;
+      word-break:break-all;
+    }
+    .confirm-desc {
+      font-size:13px; color:rgba(245,245,220,.55);
+      line-height:1.6; margin-bottom:24px;
+    }
+    .confirm-steps {
+      width:100%; background:rgba(0,0,0,.15);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:14px; padding:16px;
+      display:flex; flex-direction:column; gap:10px;
+      margin-bottom:22px; text-align:left;
+    }
+    .confirm-step {
+      display:flex; align-items:center; gap:10px;
+      font-size:13px; color:rgba(245,245,220,.7);
+    }
+    .confirm-step-num {
+      width:22px; height:22px; border-radius:50%;
+      background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:700; flex-shrink:0;
+      font-family:'DM Mono',monospace;
+    }
+    .confirm-actions { display:flex; flex-direction:column; gap:10px; width:100%; }
+    .btn-resend {
+      width:100%; padding:11px;
+      background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+      border-radius:25px; color:var(--cream);
+      font-size:13px; font-weight:600; cursor:pointer;
+      font-family:inherit; transition:all .22s;
+      display:flex; align-items:center; justify-content:center; gap:7px;
+    }
+    .btn-resend:hover:not(:disabled) { background:rgba(255,255,255,.18); }
+    .btn-resend:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-back-login {
+      background:none; border:none; color:rgba(245,245,220,.5);
+      font-size:12px; cursor:pointer; font-family:inherit;
+      transition:color .2s; padding:4px;
+    }
+    .btn-back-login:hover { color:var(--cream); }
+    .resend-timer {
+      font-family:'DM Mono',monospace; font-size:11px;
+      color:rgba(245,245,220,.4); margin-top:2px;
+    }
+    .confirm-spam-tip {
+      font-size:11px; color:rgba(245,245,220,.35);
+      margin-top:4px; font-family:'DM Mono',monospace;
+    }
+  </style>
+</head>
+<body>
+<div class="bg-circle bg-circle-1"></div>
+<div class="bg-circle bg-circle-2"></div>
+<div class="page">
+  <div class="login-card">
+    <div class="logo">
+      <div class="logo-icon"><i class="ph ph-brain"></i></div>
+      <div class="logo-name">BrainKaizen</div>
+      <div class="logo-sub">Smart Productivity</div>
+    </div>
+    <div class="tabs" id="tabs-wrapper">
+      <button class="tab active" id="tabLogin"    onclick="showTab('login')">Entrar</button>
+      <button class="tab"        id="tabRegister" onclick="showTab('register')">Criar Conta</button>
+    </div>
+    <div class="msg" id="msgBox"></div>
+
+    <!-- LOGIN -->
+    <form class="form" id="formLogin" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <div class="input-wrap">
+          <i class="ph ph-envelope input-icon"></i>
+          <input type="email" id="loginEmail" placeholder="o_seu@email.com" required autocomplete="email"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <div class="input-wrap">
+          <i class="ph ph-lock input-icon"></i>
+          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password"/>
+          <button type="button" class="toggle-pw" onclick="togglePw('loginPassword',this)"><i class="ph ph-eye"></i></button>
+        </div>
+      </div>
+      <div class="forgot"><a href="#" onclick="handleForgot(event)">Esqueceu a senha?</a></div>
+      <button type="submit" class="btn-submit" id="btnLogin">
+        <div class="spinner" id="spinLogin"></div>
+        <span id="lblLogin">Entrar</span>
+      </button>
+    </form>
+
+    <!-- REGISTO -->
+    <form class="form" id="formRegister" style="display:none" onsubmit="handleRegister(event)">
+      <div class="form-group">
+        <label>Nome</label>
+        <div class="input-wrap">
+          <i class="ph ph-user input-icon"></i>
+          <input type="text" id="regName" placeholder="O seu nome" required autocomplete="name"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <div class="input-wrap">
+          <i class="ph ph-envelope input-icon"></i>
+          <input type="email" id="regEmail" placeholder="o_seu@email.com" required autocomplete="email"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <div class="input-wrap">
+          <i class="ph ph-lock input-icon"></i>
+          <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password"/>
+          <button type="button" class="toggle-pw" onclick="togglePw('regPassword',this)"><i class="ph ph-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Confirmar Senha</label>
+        <div class="input-wrap">
+          <i class="ph ph-lock input-icon"></i>
+          <input type="password" id="regConfirm" placeholder="Repetir senha" required autocomplete="new-password"/>
+        </div>
+      </div>
+      <button type="submit" class="btn-submit" id="btnRegister">
+        <div class="spinner" id="spinRegister"></div>
+        <span id="lblRegister">Criar Conta</span>
+      </button>
+    </form>
+
+    <!-- ECRÃ DE CONFIRMAÇÃO DE EMAIL -->
+    <div class="confirm-screen" id="confirmScreen">
+      <div class="confirm-icon-wrap">
+        <i class="ph ph-envelope-simple-open"></i>
+      </div>
+      <div class="confirm-title">Verifique o seu email</div>
+      <div class="confirm-email-badge" id="confirmEmailBadge">email@exemplo.com</div>
+      <div class="confirm-desc">
+        Enviámos um link de confirmação para o seu email.<br>
+        Clique no link para activar a sua conta.
+      </div>
+      <div class="confirm-steps">
+        <div class="confirm-step">
+          <div class="confirm-step-num">1</div>
+          <span>Abra o seu email (incluindo a pasta de spam)</span>
+        </div>
+        <div class="confirm-step">
+          <div class="confirm-step-num">2</div>
+          <span>Clique em <strong>"Confirmar email"</strong> no email do BrainKaizen</span>
+        </div>
+        <div class="confirm-step">
+          <div class="confirm-step-num">3</div>
+          <span>Volte aqui e faça login com os seus dados</span>
+        </div>
+      </div>
+      <div class="confirm-actions">
+        <button class="btn-resend" id="btnResend" onclick="resendEmail()">
+          <i class="ph ph-paper-plane-tilt"></i>
+          <span id="lblResend">Reenviar email</span>
+        </button>
+        <div class="resend-timer" id="resendTimer"></div>
+        <div class="confirm-spam-tip">💡 Não recebeu? Verifique a pasta de spam/lixo.</div>
+        <button class="btn-back-login" onclick="backToLogin()">
+          ← Voltar ao login
+        </button>
+      </div>
+    </div>
+
+    <div class="card-footer">2025 BrainKaizen - Todos os direitos reservados</div>
+  </div>
+</div>
+<script>
+  // SUPABASE_URL e SUPABASE_KEY carregados de config.js
+
+  // sessionStorage: sessão dura apenas enquanto o browser/tab estiver aberto
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+      persistSession: true,
+      storage: window.sessionStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  });
+
+  // Redirecionar se já autenticado
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) window.location.href = 'index.html';
+  });
+
+  // ── Estado do ecrã de confirmação ──────────────────────────
+  let pendingEmail    = '';   // email que está à espera de confirmação
+  let resendCountdown = 0;    // segundos até poder reenviar
+  let resendTimer     = null; // setInterval do contador
+
+  // ── Navegação entre tabs ────────────────────────────────────
+  function showTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('tabLogin').classList.toggle('active', isLogin);
+    document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+    document.getElementById('formLogin').style.display    = isLogin ? 'flex' : 'none';
+    document.getElementById('formRegister').style.display = isLogin ? 'none' : 'flex';
+    document.getElementById('confirmScreen').classList.remove('show');
+    document.getElementById('tabs-wrapper').style.display = '';
+    hideMsg();
+  }
+
+  // ── Mostrar ecrã de confirmação ─────────────────────────────
+  function showConfirmScreen(email) {
+    pendingEmail = email;
+
+    // Esconder tabs e formulários
+    document.getElementById('tabs-wrapper').style.display = 'none';
+    document.getElementById('formLogin').style.display    = 'none';
+    document.getElementById('formRegister').style.display = 'none';
+    document.getElementById('msgBox').className = 'msg';
+
+    // Mostrar email no badge
+    document.getElementById('confirmEmailBadge').textContent = email;
+
+    // Mostrar ecrã
+    document.getElementById('confirmScreen').classList.add('show');
+
+    // Iniciar contador de reenvio (60 segundos)
+    startResendCountdown(60);
+  }
+
+  function backToLogin() {
+    clearInterval(resendTimer);
+    resendCountdown = 0;
+    document.getElementById('tabs-wrapper').style.display = '';
+    document.getElementById('confirmScreen').classList.remove('show');
+    showTab('login');
+  }
+
+  // ── Contador de reenvio ─────────────────────────────────────
+  function startResendCountdown(seconds) {
+    resendCountdown = seconds;
+    const btn       = document.getElementById('btnResend');
+    const timerEl   = document.getElementById('resendTimer');
+    btn.disabled    = true;
+
+    clearInterval(resendTimer);
+    resendTimer = setInterval(() => {
+      resendCountdown--;
+      timerEl.textContent = `Pode reenviar em ${resendCountdown}s`;
+      if (resendCountdown <= 0) {
+        clearInterval(resendTimer);
+        btn.disabled       = false;
+        timerEl.textContent = '';
+      }
+    }, 1000);
+  }
+
+  // ── Reenviar email de confirmação ───────────────────────────
+  async function resendEmail() {
+    if (!pendingEmail) return;
+    const btn = document.getElementById('btnResend');
+    const lbl = document.getElementById('lblResend');
+    btn.disabled = true;
+    lbl.textContent = 'A enviar...';
+
+    const { error } = await sb.auth.resend({ type: 'signup', email: pendingEmail });
+
+    lbl.textContent = 'Reenviar email';
+    if (error) {
+      document.getElementById('resendTimer').textContent = 'Erro ao reenviar. Tente novamente.';
+      btn.disabled = false;
+    } else {
+      document.getElementById('resendTimer').textContent = '✓ Email reenviado!';
+      startResendCountdown(60);
+    }
+  }
+
+  // ── Utilitários ─────────────────────────────────────────────
+  function showMsg(text, type = 'error') {
+    const b = document.getElementById('msgBox');
+    b.textContent = text;
+    b.className = `msg ${type} show`;
+  }
+  function hideMsg() { document.getElementById('msgBox').className = 'msg'; }
+
+  function setLoading(p, on) {
+    document.getElementById(`btn${p}`).disabled = on;
+    document.getElementById(`spin${p}`).style.display = on ? 'block' : 'none';
+    document.getElementById(`lbl${p}`).textContent = on
+      ? (p === 'Login' ? 'A entrar...' : 'A criar conta...')
+      : (p === 'Login' ? 'Entrar'      : 'Criar Conta');
+  }
+
+  function togglePw(id, btn) {
+    const inp = document.getElementById(id);
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+    btn.querySelector('i').className = inp.type === 'text' ? 'ph ph-eye-slash' : 'ph ph-eye';
+  }
+
+  // ── Login ───────────────────────────────────────────────────
+  async function handleLogin(e) {
+    e.preventDefault(); hideMsg(); setLoading('Login', true);
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    setLoading('Login', false);
+
+    if (error) {
+      const msgs = {
+        'Invalid login credentials': 'Email ou senha incorretos.',
+        'Email not confirmed':        'Email ainda não confirmado. Verifique a sua caixa de entrada.',
+        'Too many requests':          'Demasiadas tentativas. Aguarde alguns minutos.',
+      };
+      // Se o email não foi confirmado, mostrar ecrã de confirmação
+      if (error.message === 'Email not confirmed') {
+        showConfirmScreen(email);
+        return;
+      }
+      showMsg(msgs[error.message] || error.message, 'error');
+    } else {
+      showMsg('Bem-vindo! A redirecionar...', 'success');
+      setTimeout(() => window.location.href = 'index.html', 800);
+    }
+  }
+
+  // ── Registo ─────────────────────────────────────────────────
+  async function handleRegister(e) {
+    e.preventDefault(); hideMsg();
+    const name  = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const pw    = document.getElementById('regPassword').value;
+    const cf    = document.getElementById('regConfirm').value;
+
+    if (pw !== cf) { showMsg('As senhas não coincidem.', 'error'); return; }
+    if (pw.length < 6) { showMsg('A senha deve ter pelo menos 6 caracteres.', 'error'); return; }
+
+    setLoading('Register', true);
+    const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { name } } });
+    setLoading('Register', false);
+
+    if (error) {
+      // Email já registado mas não confirmado — mostrar ecrã de confirmação
+      if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
+        showConfirmScreen(email);
+      } else {
+        showMsg(error.message, 'error');
+      }
+    } else {
+      // Sucesso — mostrar ecrã de confirmação em vez de mensagem simples
+      showConfirmScreen(email);
+    }
+  }
+
+  // ── Esqueceu a senha ─────────────────────────────────────────
+  async function handleForgot(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    if (!email) { showMsg('Insira o seu email primeiro.', 'error'); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/index.html'
+    });
+    if (error) showMsg(error.message, 'error');
+    else       showMsg('✓ Email de recuperação enviado! Verifique a sua caixa de entrada.', 'success');
+  }
+
+  // [SEGURANÇA] Limpar tokens apenas se o utilizador fechar mesmo o tab
+  // Não fazer signOut durante redirects de login (beforeunload dispara nos dois casos)
+  // sessionStorage já garante logout automático ao fechar o browser
+  let isRedirecting = false;
+  document.querySelectorAll('form').forEach(f => {
+    f.addEventListener('submit', () => { isRedirecting = true; });
+  });
+  window.addEventListener('beforeunload', () => {
+    if (!isRedirecting) sb.auth.signOut();
+    isRedirecting = false;
+  });
+</script>
+</body>
+</html>
